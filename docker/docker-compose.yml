@@ -1,0 +1,82 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: cineverse
+      POSTGRES_PASSWORD: cinepass
+      POSTGRES_DB: cineverse
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  gateway:
+    build: ../gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - movie-service
+      - review-service
+
+  auth-service:
+    build: ../backend/auth-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cineverse
+      SPRING_DATASOURCE_USERNAME: cineverse
+      SPRING_DATASOURCE_PASSWORD: cinepass
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+
+  movie-service:
+    build: ../backend/movie-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cineverse
+      SPRING_DATASOURCE_USERNAME: cineverse
+      SPRING_DATASOURCE_PASSWORD: cinepass
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+
+  review-service:
+    build: ../backend/review-service
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/cineverse
+    ports:
+      - "8083:8083"
+    depends_on:
+      - mongo
+      - rabbitmq
+
+  frontend:
+    build: ../frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:
+  mongo_data:
