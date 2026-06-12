@@ -1,5 +1,14 @@
+// src/App.js
+// Root application component with routing, auth context, and layout
+
 import React from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
+
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './routes/ProtectedRoute';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -9,22 +18,42 @@ import Watchlist from './pages/Watchlist';
 import Profile from './pages/Profile';
 import Reviews from './pages/Reviews';
 
-export default function App(){
+export default function App() {
   return (
-    <div>
-      <nav>
-        <Link to="/">Home</Link> | <Link to="/movies">Movies</Link> | <Link to="/login">Login</Link>
-      </nav>
-      <Routes>
-        <Route path="/" element={<Home/>} />
-        <Route path="/login" element={<Login/>} />
-        <Route path="/register" element={<Register/>} />
-        <Route path="/movies" element={<Movies/>} />
-        <Route path="/movies/:id" element={<MovieDetails/>} />
-        <Route path="/watchlist" element={<Watchlist/>} />
-        <Route path="/profile" element={<Profile/>} />
-        <Route path="/reviews" element={<Reviews/>} />
-      </Routes>
-    </div>
-  )
+    <AuthProvider>
+      <div className="app">
+        <Navbar />
+        <main className="main-content">
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/movies" element={<Movies />} />
+            <Route path="/movies/:id" element={<MovieDetails />} />
+            <Route path="/reviews" element={<Reviews />} />
+
+            {/* Protected Routes */}
+            <Route
+              path="/watchlist"
+              element={
+                <ProtectedRoute>
+                  <Watchlist />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </AuthProvider>
+  );
 }
