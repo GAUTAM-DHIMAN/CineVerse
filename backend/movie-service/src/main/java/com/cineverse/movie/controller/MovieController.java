@@ -20,7 +20,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/movies")
-@CrossOrigin(origins = "*")
 public class MovieController {
 
     private final MovieService movieService;
