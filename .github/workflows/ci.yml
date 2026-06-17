@@ -2,9 +2,9 @@ name: CineVerse CI Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, appmod/java-upgrade-20260610103418]
   pull_request:
-    branches: [main]
+    branches: [main, appmod/java-upgrade-20260610103418]
 
 jobs:
   # ─── Auth Service Build & Test ──────────────────────────────

@@ -2,7 +2,7 @@ name: CineVerse CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, appmod/java-upgrade-20260610103418]
     tags: ['v*']
 
 env:
