@@ -47,9 +47,15 @@ public class JwtValidationFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
+        String method = request.getMethod() != null ? request.getMethod().name() : "";
+
+        // Skip OPTIONS requests (CORS preflight)
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return chain.filter(exchange);
+        }
 
         // Skip public endpoints
-        if (isPublicPath(path)) {
+        if (isPublicPath(path) || isPublicGetPath(path, method)) {
             return chain.filter(exchange);
         }
 
@@ -90,10 +96,23 @@ public class JwtValidationFilter implements GlobalFilter, Ordered {
         return PUBLIC_PATHS.stream().anyMatch(path::startsWith);
     }
 
+    private boolean isPublicGetPath(String path, String method) {
+        if (!"GET".equalsIgnoreCase(method)) {
+            return false;
+        }
+        return path.startsWith("/api/movies") || 
+               path.startsWith("/api/theatres") || 
+               path.startsWith("/api/shows") || 
+               path.startsWith("/api/seats");
+    }
+
     private Mono<Void> onError(ServerWebExchange exchange, String message, HttpStatus status) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(status);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        response.getHeaders().add("Access-Control-Allow-Origin", "*");
+        response.getHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        response.getHeaders().add("Access-Control-Allow-Headers", "*");
 
         String body = "{\"status\":\"error\",\"message\":\"" + message + "\"}";
         DataBuffer buffer = response.bufferFactory()
