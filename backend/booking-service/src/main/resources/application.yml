@@ -1,0 +1,45 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: booking-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/cineverse_bookings}
+    username: ${SPRING_DATASOURCE_USERNAME:cineverse}
+    password: ${SPRING_DATASOURCE_PASSWORD:cinepass}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 5000ms
+
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+# JWT Configuration (must match auth-service and gateway)
+jwt:
+  secret: ${JWT_SECRET:Y2luZXZlcnNlLXN1cGVyLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1nZW5lcmF0aW9uLTIwMjQ=}
+
+# Inter-service URLs
+services:
+  movie-service:
+    url: ${MOVIE_SERVICE_URL:http://localhost:8082}
+
+# Seat Lock TTL
+booking:
+  seat-lock-ttl-minutes: 5

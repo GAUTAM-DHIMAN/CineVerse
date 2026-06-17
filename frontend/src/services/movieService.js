@@ -1,124 +1,88 @@
 // src/services/movieService.js
-// Simulated API layer — returns Promises with artificial delay
-// Swap these for real Axios calls when backend is ready.
+// API layer for movies — calls Spring Boot Movie Service via Gateway
 
-import { MOCK_MOVIES, MOCK_REVIEWS } from './mockData';
+import axios from 'axios';
 
-const delay = (ms = 600) => new Promise((resolve) => setTimeout(resolve, ms));
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+
+const API = axios.create({ baseURL: API_BASE });
+
+// Attach JWT token to every request
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem('cv_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 /**
- * Fetch paginated list of movies with optional filters.
+ * Fetch paginated list of movies.
  */
-export async function getMovies({ genre, search, page = 1, limit = 20 } = {}) {
-  await delay();
+export async function getMovies({ genre, search, page = 0, limit = 20 } = {}) {
+  try {
+    const params = { page, size: limit };
+    if (genre) params.genre = genre;
+    if (search) params.search = search;
 
-  let filtered = [...MOCK_MOVIES];
-
-  if (genre) {
-    filtered = filtered.filter((m) =>
-      m.genres.map((g) => g.toLowerCase()).includes(genre.toLowerCase())
-    );
+    const res = await API.get('/movies', { params });
+    return { success: true, data: res.data.data };
+  } catch (err) {
+    return { success: false, error: { message: err.response?.data?.message || 'Failed to fetch movies' } };
   }
-
-  if (search) {
-    const q = search.toLowerCase();
-    filtered = filtered.filter(
-      (m) =>
-        m.title.toLowerCase().includes(q) ||
-        m.overview.toLowerCase().includes(q) ||
-        m.director.toLowerCase().includes(q)
-    );
-  }
-
-  const totalItems = filtered.length;
-  const totalPages = Math.ceil(totalItems / limit);
-  const start = (page - 1) * limit;
-  const movies = filtered.slice(start, start + limit);
-
-  return {
-    success: true,
-    data: {
-      movies,
-      pagination: {
-        currentPage: page,
-        totalPages,
-        totalItems,
-        itemsPerPage: limit,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
-    },
-  };
 }
 
 /**
  * Fetch a single movie by ID.
  */
 export async function getMovieById(id) {
-  await delay(400);
-
-  const movie = MOCK_MOVIES.find((m) => m.id === id);
-
-  if (!movie) {
+  try {
+    const res = await API.get(`/movies/${id}`);
+    return { success: true, data: res.data.data };
+  } catch (err) {
     return {
       success: false,
-      error: { code: 'MOVIE_NOT_FOUND', message: `No movie found with id: ${id}` },
+      error: { code: 'MOVIE_NOT_FOUND', message: err.response?.data?.message || `No movie found with id: ${id}` },
     };
   }
-
-  return { success: true, data: movie };
 }
 
 /**
- * Fetch reviews for a given movie.
- */
-export async function getReviewsByMovie(movieId) {
-  await delay(500);
-
-  const reviews = MOCK_REVIEWS.filter((r) => r.movieId === movieId);
-
-  return {
-    success: true,
-    data: {
-      reviews,
-      pagination: {
-        currentPage: 1,
-        totalPages: 1,
-        totalItems: reviews.length,
-        itemsPerPage: 10,
-        hasNext: false,
-        hasPrev: false,
-      },
-    },
-  };
-}
-
-/**
- * Submit a new review (mock — just returns the submitted data).
- */
-export async function createReview({ movieId, rating, title, content, containsSpoilers = false }) {
-  await delay(800);
-
-  return {
-    success: true,
-    data: {
-      id: `rev_${Date.now()}`,
-      movieId,
-      user: { id: 'usr_a1b2c3d4', username: 'john_doe' },
-      rating,
-      title,
-      content,
-      containsSpoilers,
-      helpfulCount: 0,
-      createdAt: new Date().toISOString(),
-    },
-    message: 'Review published successfully',
-  };
-}
-
-/**
- * Search movies by query string.
+ * Search movies by title, genre, or rating.
  */
 export async function searchMovies(query) {
-  return getMovies({ search: query });
+  try {
+    const res = await API.get('/movies/search', { params: { title: query } });
+    return { success: true, data: res.data.data };
+  } catch (err) {
+    return { success: false, error: { message: err.response?.data?.message || 'Search failed' } };
+  }
+}
+
+/**
+ * Fetch reviews for a movie.
+ */
+export async function getReviewsByMovie(movieId) {
+  try {
+    const res = await API.get(`/movies/${movieId}/reviews`);
+    return { success: true, data: res.data.data };
+  } catch (err) {
+    return { success: true, data: [] };
+  }
+}
+
+/**
+ * Submit a new review for a movie.
+ */
+export async function createReview({ movieId, rating, title, content, containsSpoilers = false }) {
+  try {
+    const res = await API.post(`/movies/${movieId}/reviews`, {
+      userName: 'Anonymous',
+      rating,
+      comment: content || title,
+    });
+    return { success: true, data: res.data.data, message: 'Review published successfully' };
+  } catch (err) {
+    return { success: false, error: { message: err.response?.data?.message || 'Failed to submit review' } };
+  }
 }

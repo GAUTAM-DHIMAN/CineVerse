@@ -1,87 +1,110 @@
 // src/services/authService.js
-// Mock authentication service — simulates JWT flow with localStorage
+// API authentication service — calls Spring Boot Auth Service via Gateway
 
-import { MOCK_USERS } from './mockData';
+import axios from 'axios';
 
-const delay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms));
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 
-const FAKE_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfYTFiMmMzZDQiLCJleHAiOjk5OTk5OTk5OTl9.mock';
-const FAKE_REFRESH = 'mock_refresh_token_cineverse';
+const API = axios.create({ baseURL: API_BASE });
+
+// Attach JWT token to every request
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem('cv_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 /**
- * Simulate login — checks against MOCK_USERS.
+ * Login — calls POST /api/auth/login
+ * Auth service returns: { status, message, data: { token, userId, name, email, role } }
  */
 export async function login(email, password) {
-  await delay(700);
-
-  const user = MOCK_USERS[email];
-
-  if (!user || user.password !== password) {
+  try {
+    const res = await API.post('/auth/login', { email, password });
+    const data = res.data.data;
+    return {
+      success: true,
+      data: {
+        accessToken: data.token,
+        user: {
+          id: data.userId,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+        },
+      },
+    };
+  } catch (err) {
     return {
       success: false,
-      error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
+      error: { code: 'INVALID_CREDENTIALS', message: err.response?.data?.message || 'Login failed' },
     };
   }
-
-  const { password: _, ...safeUser } = user;
-
-  return {
-    success: true,
-    data: {
-      accessToken: FAKE_JWT,
-      refreshToken: FAKE_REFRESH,
-      tokenType: 'Bearer',
-      expiresIn: 900,
-      user: safeUser,
-    },
-  };
 }
 
 /**
- * Simulate registration — always succeeds for new emails.
+ * Register — calls POST /api/auth/register
  */
-export async function register({ username, email, password, fullName }) {
-  await delay(700);
-
-  if (MOCK_USERS[email]) {
+export async function register({ username, email, password, fullName, role }) {
+  try {
+    const res = await API.post('/auth/register', {
+      name: fullName || username,
+      email,
+      password,
+      role: role || 'USER',
+    });
+    return { success: true, data: res.data.data, message: 'Registration successful' };
+  } catch (err) {
     return {
       success: false,
-      error: { code: 'USER_EXISTS', message: 'A user with this email already exists' },
+      error: { code: 'REGISTER_FAILED', message: err.response?.data?.message || 'Registration failed' },
     };
   }
-
-  const newUser = {
-    id: `usr_${Date.now()}`,
-    username,
-    email,
-    fullName,
-    role: 'USER',
-    avatar: null,
-    createdAt: new Date().toISOString(),
-    reviewCount: 0,
-    watchlistCount: 0,
-  };
-
-  return {
-    success: true,
-    data: newUser,
-    message: 'Registration successful',
-  };
 }
 
 /**
- * Simulate profile fetch.
+ * Get profile — calls GET /api/auth/profile
  */
 export async function getProfile() {
-  await delay(300);
-
-  const stored = localStorage.getItem('cv_user');
-  if (!stored) {
+  try {
+    const res = await API.get('/auth/profile');
+    return { success: true, data: res.data.data };
+  } catch (err) {
     return {
       success: false,
-      error: { code: 'UNAUTHORIZED', message: 'Not authenticated' },
+      error: { code: 'UNAUTHORIZED', message: err.response?.data?.message || 'Not authenticated' },
     };
   }
+}
 
-  return { success: true, data: JSON.parse(stored) };
+/**
+ * Forgot Password — calls POST /api/auth/forgot-password
+ */
+export async function forgotPassword(email) {
+  try {
+    const res = await API.post('/auth/forgot-password', { email });
+    return { success: true, data: res.data.data };
+  } catch (err) {
+    return {
+      success: false,
+      error: { message: err.response?.data?.message || 'Request failed' },
+    };
+  }
+}
+
+/**
+ * Reset Password — calls POST /api/auth/reset-password
+ */
+export async function resetPassword(token, newPassword) {
+  try {
+    const res = await API.post('/auth/reset-password', { token, newPassword });
+    return { success: true, message: res.data.message };
+  } catch (err) {
+    return {
+      success: false,
+      error: { message: err.response?.data?.message || 'Reset failed' },
+    };
+  }
 }

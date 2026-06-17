@@ -1,7 +1,9 @@
-version: '3.8'
 services:
+  # ─── Infrastructure ──────────────────────────────────────────
+
   postgres:
     image: postgres:14
+    container_name: cineverse-postgres
     environment:
       POSTGRES_USER: cineverse
       POSTGRES_PASSWORD: cinepass
@@ -10,73 +12,171 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cineverse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineverse-net
 
   mongo:
     image: mongo:6
+    container_name: cineverse-mongo
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineverse-net
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    container_name: cineverse-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cineverse-net
 
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: cineverse-rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - cineverse-net
+
+  # ─── Application Services ───────────────────────────────────
 
   gateway:
     build: ../gateway
+    container_name: cineverse-gateway
     ports:
       - "8080:8080"
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+      MOVIE_SERVICE_URL: http://movie-service:8082
+      REVIEW_SERVICE_URL: http://review-service:8083
+      BOOKING_SERVICE_URL: http://booking-service:8084
+      JWT_SECRET: Y2luZXZlcnNlLXN1cGVyLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1nZW5lcmF0aW9uLTIwMjQ=
     depends_on:
-      - auth-service
-      - movie-service
-      - review-service
+      auth-service:
+        condition: service_started
+      movie-service:
+        condition: service_started
+      review-service:
+        condition: service_started
+      booking-service:
+        condition: service_started
+    networks:
+      - cineverse-net
 
   auth-service:
     build: ../backend/auth-service
+    container_name: cineverse-auth
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cineverse
       SPRING_DATASOURCE_USERNAME: cineverse
       SPRING_DATASOURCE_PASSWORD: cinepass
+      JWT_SECRET: Y2luZXZlcnNlLXN1cGVyLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1nZW5lcmF0aW9uLTIwMjQ=
     ports:
       - "8081:8081"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    networks:
+      - cineverse-net
 
   movie-service:
     build: ../backend/movie-service
+    container_name: cineverse-movies
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cineverse
-      SPRING_DATASOURCE_USERNAME: cineverse
-      SPRING_DATASOURCE_PASSWORD: cinepass
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/cineverse_movies
     ports:
       - "8082:8082"
     depends_on:
-      - postgres
+      mongo:
+        condition: service_healthy
+    networks:
+      - cineverse-net
 
   review-service:
     build: ../backend/review-service
+    container_name: cineverse-reviews
     environment:
       SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/cineverse
+      SPRING_RABBITMQ_HOST: rabbitmq
     ports:
       - "8083:8083"
     depends_on:
-      - mongo
-      - rabbitmq
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cineverse-net
+
+  booking-service:
+    build: ../backend/booking-service
+    container_name: cineverse-bookings
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cineverse_bookings
+      SPRING_DATASOURCE_USERNAME: cineverse
+      SPRING_DATASOURCE_PASSWORD: cinepass
+      MOVIE_SERVICE_URL: http://movie-service:8082
+      REDIS_HOST: redis
+      RABBITMQ_HOST: rabbitmq
+      JWT_SECRET: Y2luZXZlcnNlLXN1cGVyLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1nZW5lcmF0aW9uLTIwMjQ=
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      movie-service:
+        condition: service_started
+    networks:
+      - cineverse-net
 
   frontend:
     build: ../frontend
+    container_name: cineverse-frontend
     ports:
       - "3000:3000"
     depends_on:
       - gateway
+    networks:
+      - cineverse-net
+
+# ─── Infrastructure ──────────────────────────────────────────
 
 volumes:
   postgres_data:
   mongo_data:
+
+networks:
+  cineverse-net:
+    driver: bridge

@@ -1,18 +1,64 @@
 server:
   port: 8080
+
 spring:
+  application:
+    name: api-gateway
   cloud:
     gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: false
       routes:
         - id: auth
-          uri: http://auth-service:8081
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
           predicates:
             - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+
         - id: movies
-          uri: http://movie-service:8082
+          uri: ${MOVIE_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/movies/**
-        - id: reviews
-          uri: http://review-service:8083
+
+        - id: reviews-service
+          uri: ${REVIEW_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/reviews/**
+
+        - id: booking
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/booking/**
+          filters:
+            - StripPrefix=1
+
+        - id: theatres
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/theatres/**
+          filters:
+            - StripPrefix=1
+
+        - id: shows
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/shows/**
+          filters:
+            - StripPrefix=1
+
+        - id: seats
+          uri: ${BOOKING_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/seats/**
+          filters:
+            - StripPrefix=1
+
+# JWT Configuration (must match auth-service and booking-service)
+jwt:
+  secret: ${JWT_SECRET:Y2luZXZlcnNlLXN1cGVyLXNlY3JldC1rZXktZm9yLWp3dC10b2tlbi1nZW5lcmF0aW9uLTIwMjQ=}

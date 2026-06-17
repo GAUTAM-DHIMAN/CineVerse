@@ -1,0 +1,3 @@
+#!/bin/sh
+# Minimal maven wrapper delegation for CI/CD environments
+exec mvn "$@"

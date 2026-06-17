@@ -1,0 +1,74 @@
+name: CineVerse CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/cineverse
+
+jobs:
+  # ─── Build & Push Docker Images ─────────────────────────────
+  build-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service:
+          - name: gateway
+            context: ./gateway
+          - name: auth-service
+            context: ./backend/auth-service
+          - name: movie-service
+            context: ./backend/movie-service
+          - name: review-service
+            context: ./backend/review-service
+          - name: booking-service
+            context: ./backend/booking-service
+          - name: frontend
+            context: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # ─── Deploy (Placeholder) ──────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy notification
+        run: |
+          echo "🚀 All images built and pushed successfully!"
+          echo "Deploy to your preferred platform:"
+          echo "  - Docker Compose on VPS"
+          echo "  - Kubernetes cluster"
+          echo "  - AWS ECS / GCP Cloud Run"

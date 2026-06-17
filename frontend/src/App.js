@@ -17,6 +17,9 @@ import MovieDetails from './pages/MovieDetails';
 import Watchlist from './pages/Watchlist';
 import Profile from './pages/Profile';
 import Reviews from './pages/Reviews';
+import BookingPage from './pages/BookingPage';
+import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
 
 export default function App() {
   return (
@@ -33,7 +36,7 @@ export default function App() {
             <Route path="/movies/:id" element={<MovieDetails />} />
             <Route path="/reviews" element={<Reviews />} />
 
-            {/* Protected Routes */}
+            {/* Protected Routes — Any authenticated user */}
             <Route
               path="/watchlist"
               element={
@@ -47,6 +50,32 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/booking/:movieId"
+              element={
+                <ProtectedRoute>
+                  <BookingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin / Theatre Owner Routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredRoles={['ADMIN', 'THEATRE_OWNER']}>
+                  <AdminDashboard />
                 </ProtectedRoute>
               }
             />
