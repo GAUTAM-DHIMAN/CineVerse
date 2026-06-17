@@ -7,6 +7,25 @@ const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// GET /reviews — get all reviews (recent reviews across all movies)
+router.get('/', (req, res) => {
+  const db = getDb();
+  const reviews = db.prepare(`
+    SELECT r.*, m.title as movie_title 
+    FROM reviews r 
+    JOIN movies m ON r.movie_id = m.id 
+    ORDER BY r.created_at DESC 
+    LIMIT 20
+  `).all();
+
+  res.json({
+    status: 'success',
+    data: {
+      reviews: reviews.map(formatReview),
+    },
+  });
+});
+
 // GET /reviews/:movieId — get reviews for a movie
 router.get('/:movieId', (req, res) => {
   const db = getDb();
@@ -53,6 +72,7 @@ function formatReview(row) {
   return {
     id: row.id,
     movieId: row.movie_id,
+    movieTitle: row.movie_title || null,
     user: { id: row.user_id ? `usr_${row.user_id}` : null, username: row.username, avatar: null },
     rating: row.rating,
     title: row.title,

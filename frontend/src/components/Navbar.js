@@ -45,6 +45,14 @@ export default function Navbar() {
           >
             Movies
           </Link>
+          <Link
+            to="/reviews"
+            className={`nav-link ${isActive('/reviews') ? 'active' : ''}`}
+            id="nav-reviews"
+            onClick={() => setMobileOpen(false)}
+          >
+            Reviews
+          </Link>
 
           {isAuthenticated && (
             <>

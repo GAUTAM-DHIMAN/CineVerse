@@ -1,9 +1,9 @@
 // src/services/movieService.js
-// API layer for movies — calls Spring Boot Movie Service via Gateway
+// API layer for movies — calls Express backend
 
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const API = axios.create({ baseURL: API_BASE });
 
@@ -64,10 +64,22 @@ export async function searchMovies(query) {
  */
 export async function getReviewsByMovie(movieId) {
   try {
-    const res = await API.get(`/movies/${movieId}/reviews`);
+    const res = await API.get(`/reviews/${movieId}`);
     return { success: true, data: res.data.data };
   } catch (err) {
-    return { success: true, data: [] };
+    return { success: true, data: { reviews: [] } };
+  }
+}
+
+/**
+ * Fetch recent reviews across all movies.
+ */
+export async function getAllReviews() {
+  try {
+    const res = await API.get('/reviews');
+    return { success: true, data: res.data.data };
+  } catch (err) {
+    return { success: true, data: { reviews: [] } };
   }
 }
 
@@ -76,10 +88,12 @@ export async function getReviewsByMovie(movieId) {
  */
 export async function createReview({ movieId, rating, title, content, containsSpoilers = false }) {
   try {
-    const res = await API.post(`/movies/${movieId}/reviews`, {
-      userName: 'Anonymous',
+    const res = await API.post('/reviews', {
+      movieId,
       rating,
-      comment: content || title,
+      title,
+      content,
+      containsSpoilers,
     });
     return { success: true, data: res.data.data, message: 'Review published successfully' };
   } catch (err) {

@@ -1,9 +1,9 @@
 // src/services/authService.js
-// API authentication service — calls Spring Boot Auth Service via Gateway
+// API authentication service — calls Express backend
 
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const API = axios.create({ baseURL: API_BASE });
 
@@ -17,8 +17,8 @@ API.interceptors.request.use((config) => {
 });
 
 /**
- * Login — calls POST /api/auth/login
- * Auth service returns: { status, message, data: { token, userId, name, email, role } }
+ * Login — calls POST /auth/login
+ * Backend returns: { status, message, data: { accessToken, refreshToken, tokenType, expiresIn, user } }
  */
 export async function login(email, password) {
   try {
@@ -27,13 +27,8 @@ export async function login(email, password) {
     return {
       success: true,
       data: {
-        accessToken: data.token,
-        user: {
-          id: data.userId,
-          name: data.name,
-          email: data.email,
-          role: data.role,
-        },
+        accessToken: data.accessToken,
+        user: data.user,
       },
     };
   } catch (err) {
